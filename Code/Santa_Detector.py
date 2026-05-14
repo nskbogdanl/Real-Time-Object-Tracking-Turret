@@ -7,7 +7,35 @@ import time
 import numpy as np
 import torch
 import serial
+import serial.tools.list_ports
 from pathlib import Path
+
+
+def find_arduino():
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        description = port.description.lower()
+        if "arduino" in description:
+            print(f"✅ Arduino found on: {port.device}")
+            return port.device
+    return None
+
+def connect_arduino(arduino_port, baudrate):
+    try:
+        arduino = serial.Serial(arduino_port, baudrate, timeout=1)
+        time.sleep(2)
+        print(f"✅ Arduino connected on {arduino_port}")
+        return arduino
+    except Exception as e:
+        print(f"❌ Failed to connect to Arduino: {e}")
+        return None
+    
+def send_arduino(arduino, msg, arduino_port, baudrate):
+    try:
+        arduino.write(msg)
+    except serial.SerialException:
+        arduino = connect_arduino(arduino_port, baudrate)
+    return arduino
 
 # ------------------------ DEVICE (CUDA / ROCm / CPU) ------------------------
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -16,19 +44,16 @@ print(f"🚀 Using device: {device}")
 # ------------------------ PATHS (CROSS-PLATFORM) ------------------------
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "Santa_Claus_Weight.pt"
+assert MODEL_PATH.exists(), f"❌ Model not found: {MODEL_PATH}"
 
 # ------------------------ ARDUINO SETTINGS ------------------------
-arduino_port = 'COM3'
-baudrate = 9600
+arduino_port = find_arduino()
+baudrate = 9600 # Make sure, that baudrate in arduino script is the same
 last_seen_time = time.time()
+reset_send = False
 
-try:
-    arduino = serial.Serial(arduino_port, baudrate, timeout=1)
-    time.sleep(2)
-    print(f"✅ Arduino connected on {arduino_port}")
-except Exception as e:
-    print(f"❌ Failed to connect to Arduino: {e}")
-    arduino = None
+arduino=connect_arduino(arduino_port, baudrate)
+arduino=send_arduino(arduino, b"90,90\n", arduino_port, baudrate) # Send 90, 90 to servos (Full stop)
 
 # ------------------------ MODEL LOADING ------------------------
 print("0. Program started")
@@ -52,13 +77,18 @@ print(f"3. Warm-up completed in {time.time() - t_warm:.2f} sec")
 # ------------------------ CAMERA ------------------------
 print("4. Opening camera")
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FPS, 30)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+cap.set(cv2.CAP_PROP_FPS, 90) # FPS of the camera
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920) # Resolution X-Axis
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080) # Resolution Y-Axis
 
 if not cap.isOpened():
     print("❌ Failed to open webcam")
     exit()
+
+actual_fps = cap.get(cv2.CAP_PROP_FPS)
+actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+print(f"Actual settings: {actual_width}x{actual_height} @ {actual_fps}fps")
 
 print("5. Camera opened")
 print("Press 'q' to exit")
@@ -90,7 +120,7 @@ try:
             santa_boxes = []
             other_boxes = []
 
-            for box in result.boxes:
+            for box in result.boxes: # Filtering classes
                 cls_idx = int(box.cls[0])
                 cls_name = model.names[cls_idx]
 
@@ -102,7 +132,7 @@ try:
             best_box = None
             min_distance = float("inf")
 
-            for box in santa_boxes:
+            for box in santa_boxes: # Finding the most centered Santa
                 x1, y1, x2, y2 = box.xyxy[0]
                 box_center_x = (x1 + x2) / 2
                 box_center_y = (y1 + y2) / 2
@@ -114,14 +144,13 @@ try:
                     min_distance = distance
                     best_box = box
 
-            for box in santa_boxes:
+            for box in santa_boxes: # Draw all Santa-Boxes
                 x1, y1, x2, y2 = box.xyxy[0]
                 conf = box.conf[0].item()
-                cls_idx = int(box.cls[0])
-                cls_name = model.names[cls_idx]
 
-                if box is best_box:
+                if box is best_box: # Aiming at the most centered Santa
                     last_seen_time = time.time()
+                    reset_send = False
                     color = (0, 0, 255)
 
                     x_center = ((x1 + x2) / 2) / frame_width
@@ -132,14 +161,11 @@ try:
                     servo_y = int(90 - (y_center - 0.5) * 180)
                     # -------------------------------------------------------------------
 
-                    servo_x = max(0, min(180, servo_x))
-                    servo_y = max(0, min(180, servo_y))
+                    servo_x = max(0, min(180, servo_x)) # To make sure that
+                    servo_y = max(0, min(180, servo_y)) # servos get command 0-180
 
                     if arduino:
-                        msg = f"{servo_x},{servo_y}\n"
-                        arduino.write(msg.encode())
-                        print("-> sent:", msg.strip())
-
+                        arduino=send_arduino(arduino, f"{servo_x},{servo_y}\n".encode(), arduino_port, baudrate)
                     label = f"TARGET {conf:.2f}"
 
                 else:
@@ -149,22 +175,19 @@ try:
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
                 cv2.putText(frame, label, (int(x1), int(y1) - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
         else:
-            if time.time() - last_seen_time < 0.5:
+            if time.time() - last_seen_time < 0.5: # If santa wasn't found for 0.5 seconds
                 print("Santa disappeared, still waiting...")
-
-            if arduino:
-                print("Santa lost, timeout reached")
-                arduino.write(b"90,90\n")
+            elif arduino and not reset_send:
+                arduino=send_arduino(arduino, b"90,90\n", arduino_port, baudrate) # Send 90, 90 to servos (Full stop)
+                reset_send=True
 
         cv2.imshow("YOLO Webcam", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             if arduino:
                 print("STOP")
-                arduino.write(b"90,90\n")
-                time.sleep(0.2)
+                arduino=send_arduino(arduino, b"90,90\n", arduino_port, baudrate) # Send 90, 90 to servos (Full stop)
             break
 
 finally:
