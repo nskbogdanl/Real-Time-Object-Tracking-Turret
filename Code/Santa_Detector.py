@@ -15,7 +15,7 @@ def find_arduino():
     ports = serial.tools.list_ports.comports()
     for port in ports:
         description = port.description.lower()
-        if "arduino" in description:
+        if port.vid == 0x2341:  # Arduino VID
             print(f"✅ Arduino found on: {port.device}")
             return port.device
     return None
@@ -33,6 +33,7 @@ def connect_arduino(arduino_port, baudrate):
 def send_arduino(arduino, msg, arduino_port, baudrate):
     try:
         arduino.write(msg)
+        print(f"📡 Sent to Arduino: {msg.decode().strip()}")
     except serial.SerialException:
         arduino = connect_arduino(arduino_port, baudrate)
     return arduino
@@ -51,6 +52,8 @@ arduino_port = find_arduino()
 baudrate = 9600 # Make sure, that baudrate in arduino script is the same
 last_seen_time = time.time()
 reset_send = False
+SEND_INTERVAL = 0.05  # 50ms = max 20 commands/second, to avoid overwhelming the Arduino
+last_send_time = 0
 
 arduino=connect_arduino(arduino_port, baudrate)
 arduino=send_arduino(arduino, b"90,90\n", arduino_port, baudrate) # Send 90, 90 to servos (Full stop)
@@ -76,10 +79,11 @@ print(f"3. Warm-up completed in {time.time() - t_warm:.2f} sec")
 
 # ------------------------ CAMERA ------------------------
 print("4. Opening camera")
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M','J','P','G')) # Must be set before FPS and resolution
 cap.set(cv2.CAP_PROP_FPS, 90) # FPS of the camera
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920) # Resolution X-Axis
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080) # Resolution Y-Axis
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200) # Resolution Y-Axis
 
 if not cap.isOpened():
     print("❌ Failed to open webcam")
@@ -161,11 +165,12 @@ try:
                     servo_y = int(90 - (y_center - 0.5) * 180)
                     # -------------------------------------------------------------------
 
-                    servo_x = max(0, min(180, servo_x)) # To make sure that
-                    servo_y = max(0, min(180, servo_y)) # servos get command 0-180
+                    servo_x = max(50, min(130, servo_x)) # To make sure that
+                    servo_y = max(50, min(130, servo_y)) # servos get command 0-180
 
-                    if arduino:
+                    if arduino and (time.time() - last_send_time >= SEND_INTERVAL):
                         arduino=send_arduino(arduino, f"{servo_x},{servo_y}\n".encode(), arduino_port, baudrate)
+                        last_send_time = time.time()
                     label = f"TARGET {conf:.2f}"
 
                 else:
