@@ -1,4 +1,4 @@
-# Real-Time Object Tracking Turret
+# Real-Time Object Tracking Turret (Work in Progress)
 Real-time computer vision system that tracks a target object (Santa) using YOLO and controls a dual-axis servo turret via Arduino.
 
 ---
