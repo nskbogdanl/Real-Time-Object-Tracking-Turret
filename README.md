@@ -3,7 +3,7 @@ Real-time computer vision system that tracks a target object (Santa) using YOLO 
 
 ---
 
-## Wait a little to see a gif
+## Wait a little to see a gif:
 <img src="./Media/Test_Video.gif" width="300" alt="First Prototype">
 
 ---
