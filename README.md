@@ -3,6 +3,7 @@ Real-time computer vision system that tracks a target object (Santa) using YOLO 
 
 ---
 
+## Wait a little to see a gif
 <img src="./Media/Test_Video.gif" width="300" alt="First Prototype">
 
 ---
@@ -71,7 +72,7 @@ pip install ultralytics opencv-python numpy torch pyserial
 ├── STL/ # 3D printing models
 │ └── *.stl (parts for 3D-printing)
 │
-├── Kompas_3D/ # CAD source files
+├── Kompas-3D/ # CAD source files
 │ ├── *.m3d
 │ ├── *.m3d.bak
 │ └── design files
