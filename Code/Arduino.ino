@@ -1,20 +1,60 @@
 #include <Servo.h>
+#include "Arduino_LED_Matrix.h"
+
+ArduinoLEDMatrix matrix;
 
 Servo servoX;
 Servo servoY;
 
+uint8_t crossIcon[8][12] = {
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+  {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0},
+  {0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0},
+  {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0},
+  {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0}
+};
+
+uint8_t checkIcon[8][12] = {
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+  {0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+  {0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+uint8_t dotsIcon[8][12] = {
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0},
+  {0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
+
 const int servoX_pin = 9;
 const int servoY_pin = 10;
+long lastCommand=0;
 
 void setup() {
   Serial.begin(9600);
   servoX.attach(servoX_pin);
   servoY.attach(servoY_pin);
-
+  
   servoX.write(90); // Center
   servoY.write(90); // Center
   delay(500);
   Serial.println("Arduino ready");
+
+  matrix.begin();
+  matrix.renderBitmap(crossIcon, 8, 12);
 }
 
 void loop() {
@@ -38,11 +78,13 @@ void loop() {
 
       servoX.write(x);
       servoY.write(y);
-
-      Serial.print("Received: ");
-      Serial.print(x);
-      Serial.print(",");
-      Serial.println(y);
+      matrix.renderBitmap(checkIcon, 8, 12);
     }
+    lastCommand=millis();
   }
+  if (millis() - lastCommand > 500) {
+        servoX.write(90);
+        servoY.write(90);
+        matrix.renderBitmap(crossIcon, 8, 12);
+      }
 }
