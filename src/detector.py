@@ -12,8 +12,8 @@ from pathlib import Path
 from serial.tools import list_ports
 import sys
 
-BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "Santa_Claus_Weight.pt"
+BASE_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = BASE_DIR / "models" /"santa_claus_weights.pt"
 
 
 def find_arduino_port():
@@ -47,6 +47,20 @@ def find_camera(max_cameras=10):
         cap.release()
     return None
 
+def ensure_arduino():
+    global arduino
+    if ARDUINO_PORT is None:
+        arduino = None
+        return
+    if arduino is None or not arduino.is_open:
+        if arduino is not None:
+            arduino.close()
+        try:
+            arduino = serial.Serial(ARDUINO_PORT, BAUDRATE, timeout=1)
+            print(f"✅ Arduino reconnected on {ARDUINO_PORT}")
+        except serial.SerialException:
+            arduino = None
+
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using: {DEVICE}")
@@ -58,13 +72,15 @@ SEND_INTERVAL = 0.05  # 20 Hz
 last_seen_time = time.time()
 last_send_time = 0
 
-try:
-    arduino = serial.Serial(ARDUINO_PORT, BAUDRATE, timeout=1)
-    time.sleep(2)
-    print(f"✅ Arduino connected on {ARDUINO_PORT}")
-except Exception as e:
-    print(f"❌ Failed to connect to Arduino: {e}")
-    arduino = None
+arduino = None
+if ARDUINO_PORT is not None:
+    try:
+        arduino = serial.Serial(ARDUINO_PORT, BAUDRATE, timeout=1)
+        print(f"✅ Arduino connected on {ARDUINO_PORT}")
+    except Exception as e:
+        print(f"❌ Failed to connect to Arduino: {e}")
+else:
+    print(f"❌ Failed to find Arduino port")
 
 print("0. Program started")
 t0 = time.time()
@@ -120,6 +136,8 @@ try:
             print("❌ Failed to get frame")
             break
 
+        ensure_arduino()
+
         frame_height, frame_width, _ = frame.shape
 
         results = model(
@@ -168,13 +186,15 @@ try:
                 class_name = model.names[class_index]
 
                 if box is best_box:
-                    if target_lost:
+                    if target_lost or arduino is None:
                         last_seen_time = time.time()
                         integral_x = 0
                         last_error_x = 0
                         integral_y = 0
                         last_error_y = 0
                         target_lost = False
+                        filtered_x = None
+                        filtered_y = None
                     else:
                         last_error_x = error_x
                         last_error_y = error_y
@@ -183,59 +203,60 @@ try:
 
                     x_center = ((x1 + x2) / 2).item()
                     y_center = ((y1 + y2) / 2).item()
-
-                    # EMA filtering
-                    if filtered_x is None:
-                        filtered_x = x_center
-                        filtered_y = y_center
-                    else:
-                        filtered_x = ALPHA * filtered_x + (1 - ALPHA) * x_center
-                        filtered_y = ALPHA * filtered_y + (1 - ALPHA) * y_center
-
-                    # PID calculation
-                    error_x = frame_center_x - filtered_x
-                    error_y = frame_center_y - filtered_y
-
-                    if abs(error_x) < DEAD_ZONE:
-                        error_x = 0
-
-                    if abs(error_y) < DEAD_ZONE:
-                        error_y = 0
-
-                    current_time = time.time()
-
-                    dt = current_time - last_seen_time if current_time - last_seen_time > 0 else 0.0001
-                    last_seen_time = time.time()
-
-                    px = KP * error_x
-                    py = KP * error_y
-
-                    integral_x += error_x * dt
-                    integral_y += error_y * dt
-
-                    ix = KI * integral_x
-                    iy = KI * integral_y
-
-                    dx = KD * (error_x - last_error_x) / dt
-                    dy = KD * (error_y - last_error_y) / dt
-
-                    # P + I + D
-                    servo_x = 90 + px + ix + dx
-                    servo_y = 90 + py + iy + dy
-
-                    # Clamp servo values to [0, 180]
-                    servo_x = round(max(0, min(180, servo_x)), 2)
-                    servo_y = round(max(0, min(180, servo_y)), 2)
+                    label = f"TARGET {conf:.2f}"
 
                     if arduino:
+                        # EMA filtering
+                        if filtered_x is None:
+                            filtered_x = x_center
+                            filtered_y = y_center
+                        else:
+                            filtered_x = ALPHA * filtered_x + (1 - ALPHA) * x_center
+                            filtered_y = ALPHA * filtered_y + (1 - ALPHA) * y_center
+
+                        # PID calculation
+                        error_x = frame_center_x - filtered_x
+                        error_y = frame_center_y - filtered_y
+
+                        if abs(error_x) < DEAD_ZONE:
+                            error_x = 0
+
+                        if abs(error_y) < DEAD_ZONE:
+                            error_y = 0
+
+                        current_time = time.time()
+
+                        dt = current_time - last_seen_time if current_time - last_seen_time > 0 else 0.0001
+                        last_seen_time = time.time()
+
+                        px = KP * error_x
+                        py = KP * error_y
+
+                        integral_x = max(-5000, min(5000, integral_x + error_x * dt))
+                        integral_y = max(-5000, min(5000, integral_y + error_y * dt))
+
+                        ix = KI * integral_x
+                        iy = KI * integral_y
+
+                        dx = KD * (error_x - last_error_x) / dt
+                        dy = KD * (error_y - last_error_y) / dt
+
+                        # P + I + D
+                        servo_x = 90 + px + ix + dx
+                        servo_y = 90 + py + iy + dy
+
+                        # Clamp servo values to [0, 180]
+                        servo_x = round(max(0, min(180, servo_x)), 2)
+                        servo_y = round(max(0, min(180, servo_y)), 2)
+
                         current_time = time.time()
                         if current_time - last_send_time >= SEND_INTERVAL:
                             msg = f"{servo_x},{servo_y}\n"
                             print(f"Sending to Arduino: {msg.strip()}")
                             arduino.write(msg.encode())
                             last_send_time = current_time
-
-                    label = f"TARGET {conf:.2f}"
+                    else:
+                        print(f"Arduino not connected, center of target: {x_center}, {y_center}")
                 else:
                     color = (0, 255, 0)
                     label = f"Santa {conf:.2f}"
@@ -246,11 +267,11 @@ try:
         else:
             if time.time() - last_seen_time < 0.2:
                 print("Santa disappeared, waiting...")
-
-            if arduino and not target_lost:
+            elif not target_lost:
                 print("Santa lost, timeout reached")
                 target_lost = True
-                arduino.write(b"90,90\n")
+                if arduino:
+                    arduino.write(b"90,90\n")
 
         cv2.imshow("YOLO Webcam", frame)
 

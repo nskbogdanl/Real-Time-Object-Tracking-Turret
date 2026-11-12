@@ -6,6 +6,7 @@ ArduinoLEDMatrix matrix;
 Servo servoX;
 Servo servoY;
 
+// Image of the cross on the LED matrix
 uint8_t crossIcon[8][12] = {
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0},
@@ -17,6 +18,7 @@ uint8_t crossIcon[8][12] = {
   {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0}
 };
 
+// Image of the checkmark on the LED matrix
 uint8_t checkIcon[8][12] = {
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
@@ -28,6 +30,7 @@ uint8_t checkIcon[8][12] = {
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
+// Image of the dots on the LED matrix
 uint8_t dotsIcon[8][12] = {
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -70,14 +73,14 @@ void loop() {
 
     int commaIndex = data.indexOf(',');
     if (commaIndex > 0) {
-      int x = data.substring(0, commaIndex).toInt();
-      int y = data.substring(commaIndex + 1).toInt();
+      int x_axis_speed = data.substring(0, commaIndex).toInt();
+      int y_axis_speed = data.substring(commaIndex + 1).toInt();
 
-      x = constrain(x, 0, 180);
-      y = constrain(y, 0, 180);
+      x_axis_speed = constrain(x_axis_speed, 0, 180);
+      y_axis_speed = constrain(y_axis_speed, 0, 180);
 
-      servoX.write(x);
-      servoY.write(y);
+      servoX.write(x_axis_speed);
+      servoY.write(y_axis_speed);
       matrix.renderBitmap(checkIcon, 8, 12);
     }
     lastCommand=millis();
