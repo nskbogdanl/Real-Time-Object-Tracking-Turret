@@ -1,0 +1,21 @@
+THIRD-PARTY SOFTWARE AND MODEL WEIGHTS NOTICE
+
+This directory contains model weights (`santa_claus_weights.pt`) generated using or derived from a model trained with the Ultralytics framework.
+
+Copyright (c) Ultralytics Inc.
+
+MODEL LICENSE:
+
+These model weights are distributed under the GNU Affero General Public License v3.0 (AGPL-3.0), as specified by the accompanying LICENSE file.
+
+PROJECT LICENSE:
+
+The original source code of this project is licensed under the MIT License. This does not change or override the license terms applicable to the model weights.
+
+IMPORTANT NOTICE:
+
+Use, modification, and redistribution of these model weights are subject to the applicable AGPL-3.0 terms and conditions.
+
+For commercial use under different licensing terms, contact Ultralytics regarding its Enterprise License:
+
+https://ultralytics.com
