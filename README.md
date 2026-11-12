@@ -49,7 +49,9 @@ Real-time computer vision system that searches target classes (Santas) using ult
 │ ├── detector.py
 │ └── arduino.ino
 │
-├── models/    # YOLO-Weights
+├── models/    # YOLO-Weights (under AGPL-3.0)
+│ ├── LICENSE    # AGPL-3.0 for weights, used here
+│ ├── NOTICE.txt
 │ └── santa_claus_weights.pt
 │
 ├── media/
@@ -64,6 +66,7 @@ Real-time computer vision system that searches target classes (Santas) using ult
 │   ├── *.m3d   # Kompas 3D Part
 │   └── *.a3d   # Kompas 3D Assembly
 │
+├── LICENSE # Main (MIT) License
 └── README.md
 ```
 
