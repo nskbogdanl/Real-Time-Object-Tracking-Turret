@@ -1,12 +1,8 @@
 # Real-Time Object Tracking Turret (Work in Progress)
 Real-time computer vision system that searches target classes (Santas) using ultralytics, if found, calculates and gives instructions for aiming to Arduino, that controls a dual-axis servo turret.
 
----
-
 ## Preview (a little bit outdated):
 <img src="./media/test_video.webp" width="300" alt="First Prototype">
-
----
 
 ## Tech Stack
 
@@ -19,8 +15,6 @@ Real-time computer vision system that searches target classes (Santas) using ult
 - **PySerial** — Arduino serial communication.
 - **Arduino** — Servo motor control.
 - **CUDA/ROCm** — GPU acceleration.
-
----
 
 ## BOM (Bill of Materials)
 
@@ -41,15 +35,11 @@ Real-time computer vision system that searches target classes (Santas) using ult
 -  PID control - made for smoother aiming
 -  Controls 2-axis servo system via Arduino (Serial)
 
----
-
 ## Behavior Logic
 
 - Red box → active target  
 - Green boxes → other detections  
 - If target lost (threshhold: 200ms) → servos stop 
- 
----
 
 ## Project Structure
 
@@ -76,8 +66,6 @@ Real-time computer vision system that searches target classes (Santas) using ult
 │
 └── README.md
 ```
-
----
 
 ## How It Works
 
@@ -108,15 +96,11 @@ Real-time computer vision system that searches target classes (Santas) using ult
    - The PID state (integral, derivative, EMA) resets on the next detection to avoid a "kick".
    - Arduino-side watchdog (500 ms) independently returns servos to center if no data arrives.
 
----
-
 ## Installation
 
 ```bash
 pip install opencv-python ultralytics torch numpy pyserial
 ```
-
----
 
 ## Run Project
 
@@ -128,8 +112,6 @@ Exit:
 ```
 q
 ```
-
----
 
 ## Communication Protocol
 
@@ -144,16 +126,12 @@ Example:
 120,45
 ```
 
----
-
 ## Optimizations Used
 
 - YOLO-model warm-up - reduces initial inference latency.
 - Thread Optimization - limits PyTorch CPU threads to reduce overhead.
 - Fixed inference size (640)
 - Rate-Limited Serial Communication
-
----
 
 ## Author
 
