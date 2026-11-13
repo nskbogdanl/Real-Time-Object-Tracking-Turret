@@ -6,15 +6,15 @@ Real-time computer vision system that searches target classes (Santas) using ult
 
 ## Tech Stack
 
-- **Python** — Core application language.
-- **C++** — Arduino's language.
-- **OpenCV** — Video capture and visualization.
-- **Ultralytics (YOLO26)** — Object detection.
-- **PyTorch** — Neural network inference.
-- **NumPy** — Numerical operations.
-- **PySerial** — Arduino serial communication.
-- **Arduino** — Servo motor control.
-- **CUDA/ROCm** — GPU acceleration.
+- **Python** - Core application language.
+- **C++** - Arduino's language.
+- **OpenCV** - Video capture and visualization.
+- **Ultralytics (YOLO26)** - Object detection.
+- **PyTorch** - Neural network inference.
+- **NumPy** - Numerical operations.
+- **PySerial** - Arduino serial communication.
+- **Arduino** - Servo motor control.
+- **CUDA/ROCm** - GPU acceleration.
 
 ## BOM (Bill of Materials)
 
@@ -82,9 +82,9 @@ Real-time computer vision system that searches target classes (Santas) using ult
 5. The error is fed into a standard PID loop:
    | Parameter | Value | Role |
    |-----------|-------|------|
-   | KP | 0.1 | Proportional — reacts to current offset |
-   | KI | 0.005 | Integral — eliminates steady-state drift |
-   | KD | 0.03 | Derivative — damps overshoot |
+   | KP | 0.1 | Proportional - reacts to current offset |
+   | KI | 0.005 | Integral - eliminates steady-state drift |
+   | KD | 0.03 | Derivative - damps overshoot |
    ```
    output = 90 + KP*error + KI*Σ(error*dt) + KD*(error-last_error)/dt # Converts to servo command
    ```
@@ -95,7 +95,7 @@ Real-time computer vision system that searches target classes (Santas) using ult
    - x → servoX (0-180)
    - y → servoY (0-180)
    - 90 = stop, 180 = max speed CW, 0 = max speed CCW
-7. **Target lost** — if no `Santa` box is detected for **0.2 s**, the servos are commanded back to neutral (`90,90`).
+7. **Target lost** - if no `Santa` box is detected for **0.2 s**, the servos are commanded back to neutral (`90,90`).
    - The PID state (integral, derivative, EMA) resets on the next detection to avoid a "kick".
    - Arduino-side watchdog (500 ms) independently returns servos to center if no data arrives.
 
